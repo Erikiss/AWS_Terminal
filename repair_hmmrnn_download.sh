@@ -156,16 +156,26 @@ if [ -n "$RCLONE_TOKEN" ]; then
     echo
     echo "=== 2. Download via rclone (Drive-API, kein 50-Dateien-Limit) ==="
 
-    # Frisch konfigurieren, damit ein alter/kaputter Remote nicht stoert.
-    rclone config delete "$RCLONE_REMOTE" >/dev/null 2>&1 || true
-    # stdout nach /dev/null: rclone gibt die Config (inkl. Token) sonst aus.
-    rclone config create "$RCLONE_REMOTE" drive \
-        scope=drive.readonly \
-        token="$RCLONE_TOKEN" >/dev/null
+    # WICHTIG: Token direkt in eine EIGENE rclone-Config schreiben, statt
+    # 'rclone config create' zu benutzen. Bei einem Drive-Remote startet
+    # 'config create' sonst trotz mitgegebenem Token den interaktiven
+    # OAuth-Browser-Flow ("Waiting for code...") und bleibt auf einem Server
+    # OHNE Browser haengen (Sackgasse). Aus einer FERTIGEN Config nutzt rclone
+    # das Token direkt und erneuert es non-interaktiv ueber den refresh_token
+    # -- keine Rueckfrage, kein Browser-Schritt.
+    RCLONE_CONF="/root/work/.rclone_dl.conf"
+    ( umask 077
+      cat > "$RCLONE_CONF" <<EOF
+[$RCLONE_REMOTE]
+type = drive
+scope = drive
+root_folder_id = $FOLDER_ID
+token = $RCLONE_TOKEN
+EOF
+    )
 
     set +e
-    rclone copy -P \
-        --drive-root-folder-id "$FOLDER_ID" \
+    rclone --config "$RCLONE_CONF" copy -P \
         --exclude "rclone_token_2aws.txt" \
         --retries 10 \
         --low-level-retries 20 \
@@ -174,6 +184,8 @@ if [ -n "$RCLONE_TOKEN" ]; then
         "${RCLONE_REMOTE}:" "$TEMP" 2>&1 | tee -a "$DOWNLOAD_LOG"
     RC="${PIPESTATUS[0]}"
     set -e
+
+    rm -f "$RCLONE_CONF"    # Config-Datei (enthaelt das Token) wieder entfernen
 
     echo
     echo "rclone Exit-Code: ${RC}   |   Dateien bisher: $(count_files)"

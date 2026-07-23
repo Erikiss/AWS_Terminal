@@ -33,7 +33,10 @@ erreichte nie `Exit 0` und/oder die Validierung/der Bootstrap fand nicht alles.
 ### Was die neue Version anders macht
 
 1. **Primaerer Weg: `rclone` ueber die echte Drive-API** – kein 50-Dateien-Limit,
-   der komplette Ordner wird zuverlaessig gespiegelt.
+   der komplette Ordner wird zuverlaessig gespiegelt. Das Token wird dabei
+   **direkt in eine eigene rclone-Config geschrieben** (kein `rclone config
+   create`), damit auf einem Server ohne Browser **kein interaktiver
+   OAuth-Flow** startet (`Waiting for code...`) und nichts haengen bleibt.
 2. **Token-Bootstrap ohne Henne-Ei-Problem:** Der `rclone`-Token liegt als
    *einzelne* Datei (`rclone_token_2aws.txt`) im Drive-Ordner. Eine Einzeldatei
    unterliegt **nicht** dem 50-Dateien-Limit, kann also mit `gdown` vorab geholt
